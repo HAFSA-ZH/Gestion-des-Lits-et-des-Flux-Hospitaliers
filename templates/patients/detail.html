@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.full_name }}{% endblock %}
+{% block topbar_title %}
+  <a href="{{ url_for('patients') }}" style="color:var(--text2);font-weight:500">Patients</a>
+  <span style="color:var(--border);margin:0 8px">/</span>{{ patient.full_name }}
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <!-- GAUCHE -->
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-person-badge" style="color:var(--primary)"></i>Identité du patient</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div style="font-size:20px;font-weight:700">{{ patient.full_name }}</div>
+            <div style="font-size:12px;color:var(--text2);font-family:monospace">{{ patient.ipp }}</div>
+          </div>
+          <span class="badge-status p-{{ patient.priority }}">{{ patient.priority }}</span>
+        </div>
+        <table style="width:100%;font-size:13px">
+          <tr><td style="color:var(--text2);padding:5px 0;width:45%">Naissance</td><td>{{ patient.birth_date }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Genre</td><td>{{ 'Homme' if patient.gender=='M' else 'Femme' }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Diagnostic</td><td style="font-weight:700">{{ patient.diagnosis or '—' }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Médecin</td><td>{{ patient.physician or '—' }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Service cible</td><td>{{ patient.target_service }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Arrivée</td><td style="font-family:monospace">{{ patient.arrival_at }}</td></tr>
+          {% if patient.hospitalization_at %}<tr><td style="color:var(--text2);padding:5px 0">Hospitalisation</td><td style="font-family:monospace">{{ patient.hospitalization_at }}</td></tr>{% endif %}
+          {% if patient.discharge_planned_at %}<tr><td style="color:var(--text2);padding:5px 0">Sortie prévue</td><td style="font-family:monospace;color:var(--success);font-weight:700">{{ patient.discharge_planned_at }}</td></tr>{% endif %}
+        </table>
+        <hr>
+        <div class="d-flex gap-2 flex-wrap">
+          {% if patient.needs_isolation %}<span class="badge" style="background:#f3f4f6;color:#374151"><i class="bi bi-shield"></i> Isolement</span>{% endif %}
+          {% if patient.mobility_restricted %}<span class="badge" style="background:var(--warning-lt);color:var(--warning)"><i class="bi bi-wheelchair"></i> Mobilité réduite</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Lit -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-hospital" style="color:var(--primary)"></i>Lit actuel</div>
+      <div class="card-body">
+        {% if bed %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <div style="font-size:22px;font-weight:700;font-family:monospace;color:var(--primary)">{{ bed.number }}</div>
+            <div style="font-size:12px;color:var(--text2)">{{ bed.ward_name }}</div>
+          </div>
+          <span class="badge-status s-{{ bed.status }}"><span class="dot"></span>{{ bed.status }}</span>
+        </div>
+        <a href="{{ url_for('bed_detail', bed_id=bed.id) }}" class="btn btn-light btn-sm w-100"><i class="bi bi-hospital me-1"></i>Voir le lit</a>
+        {% else %}
+        <div class="text-center py-3" style="color:var(--text2)">
+          <i class="bi bi-dash-circle" style="font-size:28px;color:var(--border)"></i>
+          <div style="font-size:13px;font-weight:600;margin-top:8px">Aucun lit attribué</div>
+          {% if free_beds_count > 0 %}
+          <div style="font-size:12px;color:var(--success);margin-top:4px">{{ free_beds_count }} lit(s) libre(s) disponible(s)</div>
+          {% else %}
+          <div style="font-size:12px;color:var(--danger);margin-top:4px">Aucun lit libre dans ce service</div>
+          {% endif %}
+        </div>
+        {% if patient.status == 'en_attente' %}
+        <form method="post" action="{{ url_for('assign_bed') }}" class="mt-2">
+          <input type="hidden" name="patient_id" value="{{ patient.id }}">
+          <input type="hidden" name="service" value="{{ patient.target_service }}">
+          <input type="hidden" name="assigned_by" value="Cadre de santé">
+          <button type="submit" class="btn btn-primary btn-sm w-100" {{ 'disabled' if free_beds_count==0 }}>
+            <i class="bi bi-plus-circle me-1"></i>Attribuer un lit automatiquement
+          </button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- DROITE -->
+  <div class="col-lg-8">
+    <!-- Pipeline statut -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-activity" style="color:var(--primary)"></i>Parcours du patient
+        {% set sc_map = {'en_attente':'ps-en_attente','admis':'ps-admis','hospitalisé':'ps-hospitalisé','en_transfert':'ps-en_transfert','sortie_prévue':'ps-sortie_prévue','sorti':'ps-sorti'} %}
+        <span class="badge-status {{ sc_map.get(patient.status,'') }} ms-auto" style="font-size:11px">{{ patient.status.replace('_',' ')|title }}</span>
+      </div>
+      <div class="card-body">
+        <!-- Stepper visuel -->
+        {% set steps = [('en_attente','⏳','En attente'),('admis','🛏️','Admis'),('hospitalisé','🏥','Hospitalisé'),('sortie_prévue','📋','Sortie prévue'),('sorti','🏠','Sorti')] %}
+        {% set order = ['en_attente','admis','hospitalisé','sortie_prévue','sorti'] %}
+        {% set cur = order.index(patient.status) if patient.status in order else 0 %}
+        <div class="d-flex mb-4" style="overflow-x:auto;gap:0">
+          {% for s,icon,label in steps %}{% set idx=loop.index0 %}
+          <div style="flex:1;text-align:center;position:relative;min-width:80px">
+            {% if idx>0 %}<div style="position:absolute;top:13px;left:0;right:50%;height:2px;background:{% if idx<=cur %}var(--primary){% else %}var(--border){% endif %}"></div>{% endif %}
+            {% if idx<4 %}<div style="position:absolute;top:13px;left:50%;right:0;height:2px;background:{% if idx<cur %}var(--primary){% else %}var(--border){% endif %}"></div>{% endif %}
+            <div style="width:28px;height:28px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:13px;position:relative;z-index:1;background:{% if idx<cur %}var(--primary){% elif idx==cur %}var(--primary){% else %}var(--bg){% endif %};border:2px solid {% if idx<=cur %}var(--primary){% else %}var(--border){% endif %}">{{ icon }}</div>
+            <div style="font-size:10px;font-weight:700;color:{% if idx==cur %}var(--primary){% elif idx<cur %}var(--text2){% else %}var(--border){% endif %};margin-top:5px">{{ label }}</div>
+          </div>{% endfor %}
+        </div>
+        <!-- Boutons transition -->
+        {% if transitions %}
+        <div class="d-flex gap-2 flex-wrap">
+          <span style="font-size:12px;color:var(--text2);align-self:center">Prochaine étape :</span>
+          {% for t in transitions %}
+          <form method="post" action="{{ url_for('update_patient_status', patient_id=patient.id) }}" class="d-inline">
+            <input type="hidden" name="status" value="{{ t }}">
+            {% if t=='sortie_prévue' %}<input type="hidden" name="hours_ahead" value="4">{% endif %}
+            <button type="submit" class="btn btn-primary btn-sm">→ {{ t.replace('_',' ')|title }}</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:12px;color:var(--text2);margin:0">Parcours terminé.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-map" style="color:var(--primary)"></i>Historique du parcours</div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for ev in patient.events %}
+          <div class="timeline-item">
+            <div class="d-flex gap-3 align-items-start">
+              <span style="font-size:20px">{{ ev.icon }}</span>
+              <div>
+                <div style="font-size:13px;font-weight:700">{{ ev.type }}</div>
+                <div style="font-size:12px;color:var(--text2)">{{ ev.location }}</div>
+                <div style="font-size:11px;color:var(--text2);font-family:monospace">{{ ev.time }}</div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          {% if patient.status not in ['sortie_prévue','sorti'] %}
+          <div class="timeline-item" style="opacity:0.35">
+            <div class="d-flex gap-3"><span style="font-size:20px">🏠</span><div><div style="font-size:13px;font-weight:700">Sortie prévue</div><div style="font-size:12px;color:var(--text2)">À planifier</div></div></div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

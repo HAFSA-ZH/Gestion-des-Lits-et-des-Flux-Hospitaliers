@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block topbar_title %}<i class="bi bi-bell" style="color:var(--primary)"></i>Notifications & Opérations{% endblock %}
+{% block content %}
+<!-- Résumé -->
+<div class="row g-3 mb-4">
+  <div class="col-auto"><div class="kpi-card d-flex align-items-center gap-3" style="padding:12px 20px"><i class="bi bi-bell" style="font-size:22px;color:var(--primary)"></i><div><div style="font-size:22px;font-weight:700">{{ summary.total }}</div><div style="font-size:11px;color:var(--text2);font-weight:700">TOTAL</div></div></div></div>
+  <div class="col-auto"><div class="kpi-card d-flex align-items-center gap-3" style="padding:12px 20px;border-left:3px solid var(--warning)"><i class="bi bi-eye-slash" style="font-size:22px;color:var(--warning)"></i><div><div style="font-size:22px;font-weight:700;color:var(--warning)">{{ summary.unread }}</div><div style="font-size:11px;color:var(--text2);font-weight:700">NON LUES</div></div></div></div>
+  <div class="col-auto"><div class="kpi-card d-flex align-items-center gap-3" style="padding:12px 20px;border-left:3px solid var(--danger)"><i class="bi bi-exclamation-circle" style="font-size:22px;color:var(--danger)"></i><div><div style="font-size:22px;font-weight:700;color:var(--danger)">{{ summary.critical }}</div><div style="font-size:11px;color:var(--text2);font-weight:700">CRITIQUES</div></div></div></div>
+  <div class="col-auto ms-auto d-flex align-items-center">
+    <form method="post" action="{{ url_for('acknowledge_all') }}">
+      <button type="submit" class="btn btn-light btn-sm"><i class="bi bi-check-all me-1"></i>Tout acquitter</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <!-- Filtres -->
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+          <select name="role" class="form-select form-select-sm" style="width:auto">
+            <option value="">Tous rôles</option>
+            {% for r in roles %}<option value="{{ r }}" {{ 'selected' if role_filter==r }}>{{ r|title }}</option>{% endfor %}
+          </select>
+          <select name="level" class="form-select form-select-sm" style="width:auto">
+            <option value="">Tous niveaux</option>
+            <option value="critique" {{ 'selected' if level_filter=='critique' }}>🔴 Critique</option>
+            <option value="warning"  {{ 'selected' if level_filter=='warning'  }}>🟠 Avertissement</option>
+            <option value="info"     {{ 'selected' if level_filter=='info'     }}>🟢 Info</option>
+          </select>
+          <div class="form-check mb-0"><input class="form-check-input" type="checkbox" name="unread" value="1" id="ur" {{ 'checked' if unread_filter }}><label class="form-check-label" for="ur" style="font-size:13px">Non lues seulement</label></div>
+          <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+          <a href="{{ url_for('notifications') }}" class="btn btn-light btn-sm">Reset</a>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-inbox" style="color:var(--primary)"></i>{{ notifications|length }} notification(s)</div>
+      <div>
+        {% for n in notifications %}
+        <div class="notif-row {{ 'unread' if not n.is_read }}">
+          <div class="notif-icon-wrap ni-{{ n.level }}">{{ n.icon }}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:{{ '700' if not n.is_read else '500' }}">
+              {{ n.title }}
+              {% if not n.is_read %}<span class="badge ms-2" style="background:var(--danger);color:#fff;font-size:9px">NOUVEAU</span>{% endif %}
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">{{ n.message }}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px">
+              <span class="badge" style="background:var(--bg);color:var(--text2);border:1px solid var(--border);font-size:10px">{{ n.role }}</span>
+              <span style="margin-left:6px;font-family:monospace">{{ n.created_at }}</span>
+            </div>
+          </div>
+          {% if not n.is_acknowledged %}
+          <form method="post" action="{{ url_for('acknowledge_notif', notif_id=n.id) }}">
+            <button type="submit" class="btn btn-light btn-sm"><i class="bi bi-check"></i></button>
+          </form>
+          {% else %}
+          <i class="bi bi-check-all" style="color:var(--success);font-size:18px;margin-top:4px"></i>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% if not notifications %}
+        <div class="text-center py-5" style="color:var(--text2)">
+          <i class="bi bi-bell-slash" style="font-size:36px;color:var(--border)"></i>
+          <div class="mt-2 fw-bold">Aucune notification</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Brancardages -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-truck" style="color:var(--primary)"></i>Demandes de brancardage</div>
+      {% for t in transports %}
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <span style="font-size:13px;font-weight:700">{{ t.patient }}</span>
+          <span class="badge-status p-{{ t.priority }}">{{ t.priority }}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><i class="bi bi-arrow-right me-1"></i>{{ t.from }} → {{ t.to }}</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div style="font-size:11px;color:var(--text2)">
+            {% if t.status=='pending' %}<span style="color:var(--warning);font-weight:700">⏳ En attente</span>
+            {% elif t.status=='assigned' %}<span style="color:var(--primary);font-weight:700">👤 {{ t.agent }}</span>
+            {% elif t.status=='in_progress' %}<span style="color:var(--info);font-weight:700">🚶 En cours — {{ t.agent }}</span>
+            {% elif t.status=='completed' %}<span style="color:var(--success);font-weight:700">✅ Terminé {{ t.completed_at }}</span>
+            {% endif %}
+            <span style="margin-left:8px;font-family:monospace">{{ t.requested_at }}</span>
+          </div>
+          {% if t.status in ['pending','assigned','in_progress'] %}
+          <div>
+            {% if t.status=='pending' %}
+            <form method="post" action="{{ url_for('update_transport', transport_id=t.id) }}" class="d-inline">
+              <input type="hidden" name="action" value="assign">
+              <input type="hidden" name="agent" value="Brancardier disponible">
+              <button type="submit" class="btn btn-primary btn-sm">Assigner</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('update_transport', transport_id=t.id) }}" class="d-inline">
+              <input type="hidden" name="action" value="complete">
+              <button type="submit" class="btn btn-light btn-sm">Terminé</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if not transports %}<div class="text-center py-4" style="color:var(--text2);font-size:13px"><i class="bi bi-check-circle-fill" style="color:var(--success);font-size:28px"></i><div class="mt-2">Aucun brancardage en attente</div></div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

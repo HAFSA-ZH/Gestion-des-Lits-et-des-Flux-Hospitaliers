@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Prévisions{% endblock %}
+{% block topbar_title %}<i class="bi bi-graph-up-arrow" style="color:var(--primary)"></i>Prévisions de Capacité{% endblock %}
+{% block content %}
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-label">Occupation actuelle</div><div class="kpi-value" style="color:{% if global_stats.occupancy_rate>=95 %}var(--danger){% elif global_stats.occupancy_rate>=85 %}var(--warning){% else %}var(--primary){% endif %}">{{ global_stats.occupancy_rate }}%</div></div></div>
+  <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-label">Services en tension</div><div class="kpi-value" style="color:var(--warning)">{{ forecasts|selectattr('alert','in',['danger','warning'])|list|length }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-label">Services critiques ≥95%</div><div class="kpi-value" style="color:var(--danger)">{{ forecasts|selectattr('alert','equalto','danger')|list|length }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-label">Mise à jour</div><div style="font-size:13px;font-weight:700;margin-top:8px;font-family:monospace">{{ now }}</div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history" style="color:var(--primary)"></i>Prévisions à +6 heures
+        <span class="ms-auto" style="font-size:11px;color:var(--text2);font-weight:400">Méthode : Rule-based · Confiance ~83%</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Service</th><th>Actuel</th><th>Prévu +6h</th><th>Lits libres</th><th>Risque</th><th>Recommandation</th></tr></thead>
+          <tbody>
+          {% for f in forecasts %}
+          <tr>
+            <td><div style="font-weight:700">{{ f.name }}</div><div style="font-size:11px;color:var(--text2);font-family:monospace">{{ f.code }}</div></td>
+            <td>
+              <span style="font-weight:700">{{ f.occupancy_rate }}%</span>
+              <div class="occ-bar mt-1" style="width:80px"><div class="occ-fill" style="width:{{ f.occupancy_rate }}%;background:{% if f.alert=='danger' %}var(--danger){% elif f.alert=='warning' %}var(--warning){% else %}var(--primary){% endif %}"></div></div>
+            </td>
+            <td>
+              <span style="font-weight:700;color:{% if f.risk=='danger' %}var(--danger){% elif f.risk=='warning' %}var(--warning){% else %}var(--success){% endif %}">{{ f.pred_rate }}%</span>
+              {% if f.pred_rate > f.occupancy_rate %}<i class="bi bi-arrow-up-short" style="color:var(--danger)"></i>{% elif f.pred_rate < f.occupancy_rate %}<i class="bi bi-arrow-down-short" style="color:var(--success)"></i>{% endif %}
+            </td>
+            <td style="font-weight:700;color:{% if f.pred_free==0 %}var(--danger){% elif f.pred_free<=2 %}var(--warning){% else %}var(--success){% endif %}">{{ f.pred_free }}</td>
+            <td>
+              {% if f.risk=='danger' %}<span class="badge" style="background:var(--danger-lt);color:var(--danger)">🔴 Critique</span>
+              {% elif f.risk=='warning' %}<span class="badge" style="background:var(--warning-lt);color:var(--warning)">🟠 Tension</span>
+              {% else %}<span class="badge" style="background:var(--success-lt);color:var(--success)">🟢 Normal</span>{% endif %}
+            </td>
+            <td style="font-size:11px;color:var(--text2);max-width:180px">
+              {% if f.risk=='danger' %}Déclencher plan débordement. Transferts sortants urgents.
+              {% elif f.risk=='warning' %}Anticiper les sorties. Accélérer nettoyages.
+              {% else %}Surveillance standard.{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-bar-chart-horizontal" style="color:var(--primary)"></i>Occupation actuelle</div>
+      <div class="card-body"><canvas id="wardChart" height="300"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle" style="color:var(--primary)"></i>Seuils d'alerte</div>
+      <div class="card-body">
+        {% for color,seuil,desc in [('success','< 85% — Normal','Surveillance standard, flux normal'),('warning','85–94% — Tension','Anticiper sorties, identifier lits de repli'),('danger','≥ 95% — Critique','Plan débordement : transferts, déprogrammation')] %}
+        <div class="d-flex gap-3 mb-3 align-items-start">
+          <div style="width:10px;height:10px;border-radius:3px;background:var(--{{ color }});flex-shrink:0;margin-top:4px"></div>
+          <div><div style="font-size:13px;font-weight:700">{{ seuil }}</div><div style="font-size:11px;color:var(--text2)">{{ desc }}</div></div>
+        </div>
+        {% endfor %}
+        <hr>
+        <div style="font-size:11px;color:var(--text2)"><b>Modèle :</b> Patterns horaires d'admissions/sorties + facteur jour de la semaine. Horizon 6h.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const labels=[{% for f in forecasts %}"{{ f.code }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const cur=[{% for f in forecasts %}{{ f.occupancy_rate }}{% if not loop.last %},{% endif %}{% endfor %}];
+const colors=[{% for f in forecasts %}"{% if f.alert=='danger' %}#e02424{% elif f.alert=='warning' %}#d97706{% else %}#1a56db{% endif %}"{% if not loop.last %},{% endif %}{% endfor %}];
+new Chart(document.getElementById('wardChart'),{type:'bar',data:{labels,datasets:[{label:'Occupation %',data:cur,backgroundColor:colors,borderRadius:5,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{max:100,ticks:{color:'#6b7280',font:{size:10}},grid:{color:'#f3f4f6'},title:{display:true,text:'%',color:'#6b7280'}},y:{ticks:{color:'#374151',font:{size:11,weight:'bold'}},grid:{display:false}}}}});
+</script>
+{% endblock %}

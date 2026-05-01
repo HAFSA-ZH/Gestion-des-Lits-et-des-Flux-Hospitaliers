@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Lit {{ bed.number }}{% endblock %}
+{% block topbar_title %}
+  <a href="{{ url_for('beds') }}" style="color:var(--text2);font-weight:500">Lits</a>
+  <span style="color:var(--border);margin:0 8px">/</span>
+  <span style="font-family:monospace">{{ bed.number }}</span>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-hospital" style="color:var(--primary)"></i>Lit {{ bed.number }}</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span style="font-size:22px;font-weight:700;font-family:monospace">{{ bed.number }}</span>
+          <span class="badge-status s-{{ bed.status }}"><span class="dot"></span>{{ bed.status|title }}</span>
+        </div>
+        <table style="width:100%;font-size:13px">
+          <tr><td style="color:var(--text2);padding:5px 0;width:45%">Service</td><td style="font-weight:600">{{ bed.ward_name }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Code</td><td style="font-family:monospace">{{ bed.ward_code }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Spécialité</td><td>{{ bed.service }}</td></tr>
+          <tr><td style="color:var(--text2);padding:5px 0">Dernier changement</td><td style="font-family:monospace">{{ bed.last_change }}</td></tr>
+          {% if bed.occupied_since %}<tr><td style="color:var(--text2);padding:5px 0">Occupé depuis</td><td style="color:var(--warning);font-weight:600">{{ bed.occupied_since }}</td></tr>{% endif %}
+        </table>
+        <hr>
+        <div class="d-flex gap-2 flex-wrap">
+          {% if bed.has_monitoring %}<span class="badge" style="background:var(--info-lt);color:var(--info)"><i class="bi bi-activity"></i> Monitoring</span>{% endif %}
+          {% if bed.is_isolation %}<span class="badge" style="background:#f3f4f6;color:#374151"><i class="bi bi-shield"></i> Isolement</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% if transitions %}
+    <div class="card">
+      <div class="card-header"><i class="bi bi-arrow-repeat" style="color:var(--primary)"></i>Changer le statut</div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--text2)">Depuis <span class="badge-status s-{{ bed.status }}"><span class="dot"></span>{{ bed.status }}</span> vers :</p>
+        <form method="post" action="{{ url_for('update_bed_status', bed_id=bed.id) }}">
+          {% for t in transitions %}
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="status" value="{{ t }}" id="t_{{ t }}">
+            <label class="form-check-label" for="t_{{ t }}" style="font-size:13px"><span class="badge-status s-{{ t }}"><span class="dot"></span>{{ t|title }}</span></label>
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary btn-sm mt-2 w-100"><i class="bi bi-check-lg me-1"></i>Appliquer</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-lg-8">
+    {% if patient %}
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person" style="color:var(--primary)"></i>Patient actuel</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div style="font-size:20px;font-weight:700">{{ patient.full_name }}</div>
+            <div style="font-size:12px;color:var(--text2);font-family:monospace">{{ patient.ipp }} · {{ patient.birth_date }} · {{ patient.gender }}</div>
+          </div>
+          <span class="badge-status p-{{ patient.priority }}">{{ patient.priority }}</span>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6"><div style="font-size:11px;color:var(--text2);font-weight:700">DIAGNOSTIC</div><div style="font-size:14px;font-weight:600">{{ patient.diagnosis or '—' }}</div></div>
+          <div class="col-6"><div style="font-size:11px;color:var(--text2);font-weight:700">MÉDECIN</div><div style="font-size:14px">{{ patient.physician or '—' }}</div></div>
+          <div class="col-6"><div style="font-size:11px;color:var(--text2);font-weight:700">ARRIVÉE</div><div style="font-size:13px;font-family:monospace">{{ patient.arrival_at }}</div></div>
+          <div class="col-6"><div style="font-size:11px;color:var(--text2);font-weight:700">HOSPITALISATION</div><div style="font-size:13px;font-family:monospace">{{ patient.hospitalization_at or '—' }}</div></div>
+        </div>
+        <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn btn-primary btn-sm"><i class="bi bi-person-lines-fill me-1"></i>Dossier complet</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-bed" style="font-size:48px;color:var(--border)"></i>
+        <div style="font-size:14px;color:var(--text2);margin-top:12px;font-weight:600">
+          {% if bed.status=='libre' %}Lit disponible pour admission
+          {% elif bed.status=='nettoyage' %}En cours de nettoyage (~30 min)
+          {% elif bed.status=='maintenance' %}En maintenance technique
+          {% elif bed.status=='réservé' %}Réservé — patient en route
+          {% else %}Aucun patient{% endif %}
+        </div>
+        {% if bed.status=='libre' %}
+        <a href="{{ url_for('patients') }}?status=en_attente" class="btn btn-primary btn-sm mt-3"><i class="bi bi-people me-1"></i>Voir patients en attente</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

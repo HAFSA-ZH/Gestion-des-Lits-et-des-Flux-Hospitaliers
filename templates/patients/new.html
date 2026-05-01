@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Admettre un patient{% endblock %}
+{% block topbar_title %}<a href="{{ url_for('patients') }}" style="color:var(--text2);font-weight:500">Patients</a><span style="color:var(--border);margin:0 8px">/</span>Nouvelle admission{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-plus" style="color:var(--primary)"></i>Formulaire d'admission — Urgences</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="row g-3">
+            <div class="col-6"><label class="form-label">Prénom *</label><input type="text" name="first_name" class="form-control" required placeholder="Prénom"></div>
+            <div class="col-6"><label class="form-label">Nom *</label><input type="text" name="last_name" class="form-control" required placeholder="NOM"></div>
+            <div class="col-6"><label class="form-label">Date de naissance</label><input type="date" name="birth_date" class="form-control"></div>
+            <div class="col-6"><label class="form-label">Genre</label>
+              <select name="gender" class="form-select"><option value="M">Homme</option><option value="F">Femme</option></select>
+            </div>
+            <div class="col-6"><label class="form-label">Priorité *</label>
+              <select name="priority" class="form-select" required>
+                <option value="critique">🔴 P1 — Critique</option>
+                <option value="urgent">🟠 P2 — Urgent</option>
+                <option value="standard" selected>🟡 P3 — Standard</option>
+                <option value="non_urgent">🟢 P4 — Non urgent</option>
+              </select>
+            </div>
+            <div class="col-6"><label class="form-label">Service cible *</label>
+              <select name="target_service" class="form-select" required>
+                {% for s in ['cardiologie','réanimation','chirurgie','médecine_interne','neurologie','oncologie','gériatrie','urgences'] %}
+                <option value="{{ s }}">{{ s|title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Diagnostic</label><input type="text" name="diagnosis" class="form-control" placeholder="Diagnostic principal…"></div>
+            <div class="col-12"><label class="form-label">Médecin référent</label><input type="text" name="physician" class="form-control" placeholder="Dr. …"></div>
+            <div class="col-12">
+              <label class="form-label">Besoins particuliers</label>
+              <div class="d-flex gap-4 mt-1 p-3 rounded" style="background:var(--bg)">
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="needs_isolation" id="iso"><label class="form-check-label" for="iso" style="font-size:13px">Chambre d'isolement</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="mobility_restricted" id="mob"><label class="form-check-label" for="mob" style="font-size:13px">Mobilité réduite (brancardage requis)</label></div>
+              </div>
+            </div>
+            <div class="col-12 d-flex gap-2 pt-2">
+              <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Admettre le patient</button>
+              <a href="{{ url_for('patients') }}" class="btn btn-light">Annuler</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

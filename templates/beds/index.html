@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Lits & Services{% endblock %}
+{% block topbar_title %}<i class="bi bi-hospital" style="color:var(--primary)"></i>Gestion des Lits{% endblock %}
+{% block content %}
+
+<!-- Résumé services -->
+<div class="row g-2 mb-4">
+  {% for code, ws in ward_stats.items() %}
+  <div class="col-6 col-md-3 col-xl-2">
+    <a href="?ward={{ code }}" style="text-decoration:none">
+      <div class="kpi-card" style="padding:12px 14px;border-left:3px solid {% if ws.alert=='danger' %}var(--danger){% elif ws.alert=='warning' %}var(--warning){% else %}var(--success){% endif %}">
+        <div style="font-size:11px;color:var(--text2);font-weight:600">{{ ws.name }}</div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <span style="font-size:20px;font-weight:700;color:{% if ws.alert=='danger' %}var(--danger){% elif ws.alert=='warning' %}var(--warning){% else %}var(--text){% endif %}">{{ ws.occupancy_rate }}%</span>
+          <span style="font-size:11px;font-weight:700;color:var(--success)">{{ ws.libre }} libres</span>
+        </div>
+        <div class="occ-bar mt-1">
+          <div class="occ-fill" style="width:{{ ws.occupancy_rate }}%;background:{% if ws.alert=='danger' %}var(--danger){% elif ws.alert=='warning' %}var(--warning){% else %}var(--primary){% endif %}"></div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label">Service</label>
+        <select name="ward" class="form-select form-select-sm" style="min-width:160px">
+          <option value="">Tous les services</option>
+          {% for code, w in wards.items() %}
+          <option value="{{ code }}" {{ 'selected' if ward_filter==code }}>{{ w.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label">Statut</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for s in ['libre','occupé','réservé','nettoyage','maintenance'] %}
+          <option value="{{ s }}" {{ 'selected' if status_filter==s }}>{{ s|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+        <a href="{{ url_for('beds') }}" class="btn btn-light btn-sm ms-1">Reset</a>
+      </div>
+      <div class="col-auto ms-auto" style="font-size:12px;color:var(--text2)">
+        <b style="color:var(--text)">{{ beds|length }}</b> lits affichés
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Légende statuts -->
+<div class="d-flex gap-2 flex-wrap mb-3">
+  {% for s in ['libre','occupé','réservé','nettoyage','maintenance'] %}
+  <a href="?status={{ s }}" class="badge-status s-{{ s }}" style="text-decoration:none">
+    <span class="dot"></span>{{ s|title }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Table lits -->
+<div class="card">
+  <div class="card-header"><i class="bi bi-list-ul" style="color:var(--primary)"></i>Liste des lits</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr>
+          <th>N° Lit</th><th>Service</th><th>Statut</th><th>Patient</th>
+          <th>Occupé depuis</th><th>Spécificités</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+        {% for bed in beds %}
+        <tr>
+          <td><a href="{{ url_for('bed_detail', bed_id=bed.id) }}" style="font-weight:700;font-family:monospace">{{ bed.number }}</a></td>
+          <td style="font-size:12px;color:var(--text2)">{{ bed.ward_code }}</td>
+          <td><span class="badge-status s-{{ bed.status }}"><span class="dot"></span>{{ bed.status|title }}</span></td>
+          <td style="font-weight:500">{{ bed.patient_name or '—' }}</td>
+          <td style="font-size:12px;color:var(--text2)">{{ bed.occupied_since or '—' }}</td>
+          <td style="font-size:11px">
+            {% if bed.is_isolation %}<span class="badge" style="background:#f3f4f6;color:#374151;font-size:10px">Isolement</span>{% endif %}
+            {% if bed.has_monitoring %}<span class="badge" style="background:var(--info-lt);color:var(--info);font-size:10px">Monitoring</span>{% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('bed_detail', bed_id=bed.id) }}" class="btn btn-light btn-sm"><i class="bi bi-eye"></i></a>
+              {% if VALID_TRANSITIONS.get(bed.status) %}
+              <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#m{{ loop.index }}"><i class="bi bi-arrow-repeat"></i></button>
+              <div class="modal fade" id="m{{ loop.index }}" tabindex="-1">
+                <div class="modal-dialog modal-sm">
+                  <div class="modal-content">
+                    <div class="modal-header py-2">
+                      <h6 class="modal-title" style="font-size:13px;font-weight:700">Changer statut — {{ bed.number }}</h6>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="post" action="{{ url_for('update_bed_status', bed_id=bed.id) }}">
+                      <div class="modal-body">
+                        <p style="font-size:12px;color:var(--text2)">Statut actuel : <span class="badge-status s-{{ bed.status }}"><span class="dot"></span>{{ bed.status }}</span></p>
+                        {% for t in VALID_TRANSITIONS.get(bed.status, []) %}
+                        <div class="form-check mb-2">
+                          <input class="form-check-input" type="radio" name="status" value="{{ t }}" id="t{{ loop.index }}{{ bed.id[:4] }}">
+                          <label class="form-check-label" for="t{{ loop.index }}{{ bed.id[:4] }}" style="font-size:13px">
+                            <span class="badge-status s-{{ t }}"><span class="dot"></span>{{ t|title }}</span>
+                          </label>
+                        </div>
+                        {% endfor %}
+                      </div>
+                      <div class="modal-footer py-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">Confirmer</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HôpitalFlow{% endblock %} — Gestion des Lits</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary:#1a56db;--primary-lt:#e8f0fe;--success:#0e9f6e;--success-lt:#e3f9f0;
+      --warning:#d97706;--warning-lt:#fef3c7;--danger:#e02424;--danger-lt:#fde8e8;
+      --info:#0694a2;--info-lt:#e0f5f5;--text:#111928;--text2:#6b7280;
+      --border:#e5e7eb;--bg:#f3f4f6;--white:#ffffff;--sidebar-w:245px;
+      --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 12px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);margin:0;font-size:14px;line-height:1.5}
+    .sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:200;overflow-y:auto}
+    .sidebar-brand{padding:18px 20px 14px;border-bottom:1px solid var(--border)}
+    .sidebar-brand a{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+    .brand-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#1a56db 0%,#0694a2 100%);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .brand-name{font-size:15px;font-weight:700;color:var(--text)}.brand-sub{font-size:10px;color:var(--text2);margin-top:1px}
+    .sidebar-section{padding:14px 20px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+    .sidebar-nav{list-style:none;padding:0 10px;margin:0}
+    .sidebar-nav li a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:2px;text-decoration:none;color:var(--text2);font-size:13.5px;font-weight:500;transition:all .15s}
+    .sidebar-nav li a:hover{background:var(--bg);color:var(--text)}
+    .sidebar-nav li a.active{background:var(--primary-lt);color:var(--primary);font-weight:700}
+    .sidebar-nav li a .bi{font-size:16px;width:20px;text-align:center}
+    .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}
+    .sidebar-footer{margin-top:auto;padding:14px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)}
+    .main{margin-left:var(--sidebar-w);min-height:100vh}
+    .topbar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+    .topbar-title{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+    .content{padding:24px 28px}
+    .card{background:var(--white);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+    .card-header{background:transparent;border-bottom:1px solid var(--border);padding:13px 18px;font-size:13.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+    .card-body{padding:18px}
+    .kpi-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+    .kpi-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+    .kpi-value{font-size:30px;font-weight:700;line-height:1;color:var(--text)}
+    .kpi-sub{font-size:12px;color:var(--text2);margin-top:5px}
+    .kpi-bar{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:12px}
+    .kpi-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+    .badge-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+    .badge-status .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .s-libre{background:#dcfce7;color:#166534}.s-libre .dot{background:#22c55e}
+    .s-occupé{background:#dbeafe;color:#1e40af}.s-occupé .dot{background:#3b82f6}
+    .s-réservé{background:#fef9c3;color:#854d0e}.s-réservé .dot{background:#f59e0b}
+    .s-nettoyage{background:#e0f2fe;color:#075985}.s-nettoyage .dot{background:#0ea5e9}
+    .s-maintenance{background:#f3f4f6;color:#374151}.s-maintenance .dot{background:#9ca3af}
+    .s-bloqué{background:#fef2f2;color:#991b1b}.s-bloqué .dot{background:#ef4444}
+    .p-critique{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+    .p-urgent{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+    .p-standard{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+    .p-non_urgent{background:#f9fafb;color:#374151;border:1px solid #e5e7eb}
+    .ps-en_attente{background:#fef9c3;color:#854d0e}
+    .ps-admis{background:#e0f2fe;color:#075985}
+    .ps-hospitalisé{background:#dbeafe;color:#1e40af}
+    .ps-en_transfert{background:#f3e8ff;color:#6b21a8}
+    .ps-sortie_prévue{background:#dcfce7;color:#166534}
+    .ps-sorti{background:#f9fafb;color:#6b7280}
+    .table{font-size:13px;color:var(--text)}
+    .table thead th{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-color:var(--border);background:var(--bg);padding:10px 14px}
+    .table td{border-color:var(--border);padding:11px 14px;vertical-align:middle}
+    .table tbody tr:hover{background:#f8faff}
+    .occ-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+    .occ-fill{height:100%;border-radius:3px;transition:width .4s}
+    .btn{border-radius:8px;font-size:13px;font-weight:600}
+    .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+    .btn-primary:hover{background:#1648c4;border-color:#1648c4}
+    .btn-light{background:var(--bg);border-color:var(--border);color:var(--text)}
+    .btn-light:hover{background:var(--border)}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    .form-control,.form-select{background:var(--white);border-color:var(--border);color:var(--text);border-radius:8px;font-size:13px}
+    .form-control:focus,.form-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,86,219,.15)}
+    .form-label{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px}
+    .alert{border-radius:10px;font-size:13px;border:none}
+    .alert-success{background:var(--success-lt);color:#065f46}
+    .alert-danger{background:var(--danger-lt);color:#991b1b}
+    .alert-warning{background:var(--warning-lt);color:#92400e}
+    .alert-info{background:var(--info-lt);color:#164e63}
+    .timeline{position:relative;padding-left:22px}
+    .timeline::before{content:'';position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--border);border-radius:2px}
+    .timeline-item{position:relative;margin-bottom:20px}
+    .timeline-item::before{content:'';position:absolute;left:-18px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--primary);border:2px solid #fff;box-shadow:0 0 0 2px var(--primary)}
+    .notif-row{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start;transition:background .1s}
+    .notif-row:hover{background:var(--bg)}
+    .notif-row:last-child{border-bottom:none}
+    .notif-row.unread{background:#fffbeb}
+    .notif-icon-wrap{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+    .ni-critique{background:var(--danger-lt)}.ni-warning{background:var(--warning-lt)}.ni-info{background:var(--success-lt)}
+    a{color:var(--primary)}a:hover{color:#1648c4}
+    hr{border-color:var(--border)}
+    .text-muted{color:var(--text2)!important}
+    .modal-content{border-radius:12px;border:1px solid var(--border)}
+    .modal-header,.modal-footer{border-color:var(--border)}
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <a href="{{ url_for('dashboard') }}">
+      <div class="brand-icon">🏥</div>
+      <div><div class="brand-name">HôpitalFlow</div><div class="brand-sub">Gestion des lits &amp; flux</div></div>
+    </a>
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <ul class="sidebar-nav">
+    <li><a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}"><i class="bi bi-grid-1x2"></i> Tableau de bord</a></li>
+    <li><a href="{{ url_for('beds') }}" class="{{ 'active' if request.endpoint in ['beds','bed_detail'] }}"><i class="bi bi-hospital"></i> Lits &amp; Services</a></li>
+    <li><a href="{{ url_for('patients') }}" class="{{ 'active' if 'patient' in (request.endpoint or '') }}"><i class="bi bi-people"></i> Patients{% if waiting_count > 0 %}<span class="nav-badge">{{ waiting_count }}</span>{% endif %}</a></li>
+    <li><a href="{{ url_for('notifications') }}" class="{{ 'active' if request.endpoint == 'notifications' }}"><i class="bi bi-bell"></i> Notifications{% if unread_count > 0 %}<span class="nav-badge">{{ unread_count }}</span>{% endif %}</a></li>
+    <li><a href="{{ url_for('capacity') }}" class="{{ 'active' if request.endpoint == 'capacity' }}"><i class="bi bi-graph-up-arrow"></i> Prévisions</a></li>
+  </ul>
+  <div class="sidebar-section">Actions rapides</div>
+  <ul class="sidebar-nav">
+    <li><a href="{{ url_for('new_patient') }}"><i class="bi bi-person-plus"></i> Admettre un patient</a></li>
+    <li><a href="{{ url_for('beds') }}?status=libre"><i class="bi bi-check-circle"></i> Lits disponibles</a></li>
+    <li><a href="{{ url_for('beds') }}?status=nettoyage"><i class="bi bi-droplet"></i> En nettoyage</a></li>
+  </ul>
+  <div class="sidebar-footer"><div style="font-weight:700">HôpitalFlow v1.0</div><div style="margin-top:2px">Flask · Python 3.11</div></div>
+</nav>
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">{% block topbar_title %}{% endblock %}</div>
+    <div class="topbar-right">
+      <span style="font-size:12px;color:var(--text2)" id="clock"></span>
+      <a href="{{ url_for('new_patient') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Admettre</a>
+    </div>
+  </div>
+  <div class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-{% if cat=='success' %}check-circle-fill{% elif cat=='danger' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+          {{ msg }}<button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+function tick(){const n=new Date(),e=document.getElementById('clock');if(e)e.textContent=n.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'})+' · '+n.toLocaleTimeString('fr-FR');}
+tick();setInterval(tick,1000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
